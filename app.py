@@ -9,8 +9,8 @@ if "base_year" not in st.session_state:
     st.session_state.base_year = "2017"
 if "target_year" not in st.session_state:
     st.session_state.target_year = "2030"
-if "scenario" not in st.session_state:
-    st.session_state.scenario = "Baseline"
+if "scenarios" not in st.session_state:
+    st.session_state.scenarios = "Baseline"
 if "species" not in st.session_state:
     st.session_state.species = None
 if "provinces" not in st.session_state:
@@ -71,14 +71,15 @@ with st.expander("How this works", expanded = True):
         This tool generates Breeze-ready emission control scenario files (`.xlsx`) from DPEC pathway data.
 
         **Selections**
-        - **Base Year / Target Year / Scenario** — pick one of each. Together these decide which DPEC source data is used to compute reduction percentages (target year emissions vs. base year emissions).
+        - **Base Year / Target Year** — pick one of each. Together these decide which DPEC source data is used to compute reduction percentages (target year emissions vs. base year emissions).
+        - **Scenarios** - pick any subset
         - **Species** — pick any subset (SO₂, NOₓ, NH₃, VOC, PM). The tool automatically generates *every* possible on/off combination for just the species you selected — e.g. picking 3 species generates up to 8 files (each alone, every pair, all three together, and all off).
         - **Provinces / Sectors** — pick which ones should actually receive the real DPEC reduction values. Any province–sector pair outside your selection is left at 0% change, even for a species that's "on."
         - **Weather Years** — pick one or more. A separate copy of each scenario file is produced per weather year (the reduction data itself doesn't change across weather years — only the filename does, so Breeze knows which met year to pair it with).
 
         **What "Get Excel Files" produces**
 
-        One `.xlsx` file per (species combination × weather year), all bundled into a single downloadable `.zip`.
+        One `.xlsx` file per (scenario × species combination × weather year), all bundled into a single downloadable `.zip`.
 
         **Filename convention**
 
@@ -100,8 +101,7 @@ st.session_state.target_year = st.pills("Target Year", target_year_options, sele
                                         required = True, default = "2030")
 
 scenario_options = ["Baseline", "CleanAir", "OTPCA", "OTPNZCA", "EPNZCA"]
-st.session_state.scenario = st.pills("Scenario", scenario_options, selection_mode = "single", 
-                       required = True, default = "Baseline")
+st.session_state.scenarios = st.multiselect("Scenarios", scenario_options, default = [])
 
 pollutant_options = ["SO2", "NOx", "NH3", "VOC", "PM25"]
 st.session_state.species = st.multiselect("Species", pollutant_options, default = [])
@@ -123,10 +123,10 @@ st.session_state.sectors = st.multiselect("Sectors", sector_list, default = [])
 met_years_list = list(range(2017, 2025))
 st.session_state.met_years = st.multiselect("Weather Years", met_years_list, default = [])
 
-def generate_scenarios(pos: int, bits: list, species: list, weather_years: list):
+def generate_scenarios(pos: int, bits: list, species: list, weather_years: list, scenario: str):
     if (pos < 5):
         bits[pos] = 0
-        generate_scenarios(pos + 1, bits, species, weather_years)
+        generate_scenarios(pos + 1, bits, species, weather_years, scenario)
     
         do_again = (pos == 0 and "SO2" in species) or (pos == 1 and "NOx" in species) \
                     or (pos == 2 and "NH3" in species) or (pos == 3 and "VOC" in species) \
@@ -134,7 +134,7 @@ def generate_scenarios(pos: int, bits: list, species: list, weather_years: list)
     
         if (do_again):
             bits[pos] = 1
-            generate_scenarios(pos + 1, bits, species, weather_years)
+            generate_scenarios(pos + 1, bits, species, weather_years, scenario)
     else:
         wb_edit = openpyxl.load_workbook("管控方案模板.xlsx")
         ws_edit = wb_edit["管控方案"]
@@ -174,23 +174,27 @@ def generate_scenarios(pos: int, bits: list, species: list, weather_years: list)
             species_binary += str(bit)
                       
         for weather_year in weather_years:
-            name = f'''{date_str}_{st.session_state.scenario}_{st.session_state.target_year}Target_{species_binary}_{st.session_state.base_year}Base_{weather_year}Met-{st.session_state.base_year}-{weather_year}.xlsx'''
+            name = f'''{date_str}_{scenario}_{st.session_state.target_year}Target_{species_binary}_{st.session_state.base_year}Base_{weather_year}Met-{st.session_state.base_year}-{weather_year}.xlsx'''
             st.session_state.workbooks[name] = wb_edit  
+            
+num_excel_files = len(st.session_state.scenarios) * pow(2, len(st.session_state.species)) * len(st.session_state.met_years)
+st.write(f"Number of Excel Files: {num_excel_files}")
                 
 if len(st.session_state.species) > 0 and len(st.session_state.provinces) > 0 and \
-    len(st.session_state.sectors) > 0 and len(st.session_state.met_years) > 0:
+    len(st.session_state.sectors) > 0 and len(st.session_state.met_years) > 0 and len(st.session_state.scenarios) > 0:
         if st.button("Get Excel Files"):
             with st.spinner("Generating scenario files..."):
                 time.sleep(2)
+                st.session_state.workbooks = {}
                 if st.session_state.base_year == "2017":
                     wb_base = openpyxl.load_workbook("data/2017_emission_report.xlsx")
                 else:
                     wb_base = openpyxl.load_workbook("data/2020_emission_report.xlsx")
-
-                wb_target = openpyxl.load_workbook(f"data/{st.session_state.scenario}_All_Years/{st.session_state.target_year}_Emission.xlsx")
+                    
+                for scenario in st.session_state.scenarios:
+                    wb_target = openpyxl.load_workbook(f"data/{scenario}_All_Years/{st.session_state.target_year}_Emission.xlsx")
             
-                st.session_state.workbooks = {}
-                generate_scenarios(0, [0] * 5, st.session_state.species, st.session_state.met_years)
+                    generate_scenarios(0, [0] * 5, st.session_state.species, st.session_state.met_years, scenario)
             
                 zip_buffer = io.BytesIO()
                 with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -201,7 +205,6 @@ if len(st.session_state.species) > 0 and len(st.session_state.provinces) > 0 and
 
                 zip_buffer.seek(0)
                 st.session_state.zip_bytes = zip_buffer.getvalue()
-            st.rerun()
 
 if "zip_bytes" in st.session_state:
     st.download_button("Download all scenarios (.zip)", st.session_state.zip_bytes, "dpec_scenarios.zip", "application/zip")
