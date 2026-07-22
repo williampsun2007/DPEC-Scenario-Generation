@@ -51,11 +51,31 @@ data/
 requirements.txt
 ```
 
-## Data notes
+## Data setup
 
-- Base-year workbooks contain one sheet per pollutant (`SO2`, `NOx`, `CO`, `VOC`, `NH3`, `PM10`, `PM25`, `BC`, `OC`), each a sector × province grid of annual emissions.
-- Target-year workbooks (under `data/{Scenario}_All_Years/`) follow the same per-pollutant sheet layout, with an additional `category`/`month` breakdown (the app uses the `Annual total` rows).
-- Output workbooks follow the Breeze management-plan template (`管控方案`) format: region, sector, species, and reduction factor (%), with region/sector names translated to Chinese via lookup maps in `app.py`.
+The `data/` folder and `管控方案模板.xlsx` template are **not included in this repo** — the underlying DPEC emissions data comes from Tsinghua's [MEIC model platform](https://meicmodel.org.cn/?lang=en&page_id=1901) and is gated behind MEIC's own registration and citation requirements, so it isn't redistributed here. To run the app yourself:
+
+1. Register at [meicmodel.org.cn](https://meicmodel.org.cn/) and download the DPEC scenario data you need (see "About DPEC" for details on the available versions and scenarios).
+2. Cite MEIC/DPEC per the terms on their site if you publish results derived from the data.
+3. Arrange your downloaded files to match the structure the app expects:
+
+   ```
+   data/
+     2017_emission_report.xlsx     # base-year emissions
+     2020_emission_report.xlsx     # base-year emissions
+     Baseline_All_Years/{year}_Emission.xlsx
+     CleanAir_All_Years/{year}_Emission.xlsx
+     OTPCA_All_Years/{year}_Emission.xlsx
+     OTPNZCA_All_Years/{year}_Emission.xlsx
+     EPNZCA_All_Years/{year}_Emission.xlsx
+   管控方案模板.xlsx                 # Breeze scenario output template
+   ```
+
+   - Base-year workbooks contain one sheet per pollutant (`SO2`, `NOx`, `CO`, `VOC`, `NH3`, `PM10`, `PM25`, `BC`, `OC`), each a sector × province grid of annual emissions.
+   - Target-year workbooks (under `data/{Scenario}_All_Years/`) follow the same per-pollutant sheet layout, with an additional `category`/`month` breakdown (the app uses the `Annual total` rows).
+   - The output template follows the Breeze management-plan format (`管控方案` sheet): region, sector, species, and reduction factor (%), with region/sector names translated to Chinese via lookup maps in `app.py`.
+
+Both paths are listed in `.gitignore` so they won't accidentally get committed.
 
 ## Notes / limitations
 
