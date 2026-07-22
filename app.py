@@ -1,3 +1,34 @@
+'''
+DPEC Scenario Generation Tool
+
+Streamlit app that builds Breeze-ready emission control scenario files (.xlsx)
+from DPEC pathway data.
+
+Workflow:
+1. User selects a base year and target year (which DPEC source workbooks to
+   pull from), one or more DPEC scenarios, pollutant species, provinces,
+   sectors, and weather (met) years via the UI.
+2. For each selected species, every on/off combination is generated
+   recursively (generate_scenarios), so N selected species yield up to 2^N
+   variants per scenario.
+3. For each variant, per-province/per-sector reduction percentages are
+   computed as (base emissions - target emissions) / base emissions,
+   pulled from the corresponding base-year and target-year source
+   workbooks, and written into a copy of the Breeze template
+   (管控方案模板.xlsx). Only province/sector pairs explicitly selected
+   receive nonzero values; everything else stays at 0% change.
+4. One output workbook is produced per (scenario x species-combination),
+   duplicated once per selected weather year (data is identical across
+   weather years -- only the filename changes) using the naming
+   convention:
+   {date}_{scenario}_{target_year}Target_{species_binary}_{base_year}Base_{weather_year}Met-{base_year}-{weather_year}
+5. All generated workbooks are zipped in-memory and offered as a single
+   download via the "Get Excel Files" / "Download all scenarios" buttons.
+
+Expects source data files under data/ (per base year and per scenario/target
+year) and a 管控方案模板.xlsx template in the working directory.
+'''
+
 import streamlit as st
 import openpyxl
 from datetime import date
