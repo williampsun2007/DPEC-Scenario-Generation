@@ -4,7 +4,7 @@ A small Streamlit app that turns DPEC ("Deep Pollution and Emission Control") pa
 
 Instead of hand-editing a scenario template for every combination of pollutant, province, sector, and weather year, a user picks their inputs in the UI and the app generates and zips every resulting `.xlsx` file automatically.
 
-**Live app**: dpec-scenario-generation-m2k9tmwjkyorh78p78rcrt.streamlit.app
+**Live app:** [dpec-scenario-generation-m2k9tmwjkyorh78p78rcrt.streamlit.app](https://dpec-scenario-generation-m2k9tmwjkyorh78p78rcrt.streamlit.app/)
 
 ## What it does
 
