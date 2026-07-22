@@ -33,8 +33,67 @@ import streamlit as st
 import openpyxl
 from datetime import date
 import io
+import os
+import shutil
+import tarfile
+import tempfile
+import urllib.request
 import zipfile
 import time
+ 
+DATA_DIR = "data"
+TEMPLATE_FILE = "管控方案模板.xlsx"
+
+@st.cache_resource(show_spinner = "Loading DPEC scenario data...")
+def ensure_data_available():
+    if os.path.isdir(DATA_DIR) and os.path.isfile(TEMPLATE_FILE):
+        return
+ 
+    if "github_data" not in st.secrets:
+        st.error(
+            "Scenario data isn't available. Either place `data/` and "
+            f"`{TEMPLATE_FILE}` next to app.py yourself (see the README's "
+            "Data setup section), or configure the `[github_data]` secret."
+        )
+        st.stop()
+ 
+    cfg = st.secrets["github_data"]
+    url = f"https://api.github.com/repos/{cfg['owner']}/{cfg['repo']}/tarball/{cfg['ref']}"
+    request = urllib.request.Request(
+        url,
+        headers = {
+            "Authorization": f"Bearer {cfg['token']}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "User-Agent": "dpec-scenario-generation-app",
+        },
+    )
+ 
+    try:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            archive_path = os.path.join(tmp_dir, "data.tar.gz")
+            with urllib.request.urlopen(request) as response, open(archive_path, "wb") as f:
+                shutil.copyfileobj(response, f)
+ 
+            with tarfile.open(archive_path) as tar:
+                tar.extractall(tmp_dir)
+ 
+            # GitHub tarballs extract into one top-level folder named
+            # something like "{owner}-{repo}-{shortsha}/" -- find it and
+            # pull data/ and the template out of it.
+            extracted_root = next(
+                os.path.join(tmp_dir, name)
+                for name in os.listdir(tmp_dir)
+                if os.path.isdir(os.path.join(tmp_dir, name))
+            )
+            shutil.move(os.path.join(extracted_root, DATA_DIR), DATA_DIR)
+            shutil.move(os.path.join(extracted_root, TEMPLATE_FILE), TEMPLATE_FILE)
+    except Exception as e:
+        st.error(f"Failed to load scenario data from the private data repo: {e}")
+        st.stop()
+ 
+ 
+ensure_data_available()
 
 if "base_year" not in st.session_state:
     st.session_state.base_year = "2017"

@@ -2,3 +2,4 @@
 ~$管控方案模板.xlsx
 /data/
 /管控方案模板.xlsx
+.streamlit/secrets.toml
